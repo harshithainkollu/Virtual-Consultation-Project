@@ -1,0 +1,19 @@
+<!-- Start Call Button -->
+<button (click)="startVideoCall()">Start Video Call</button>
+
+<!-- Display the generated patient link -->
+<div *ngIf="patientLink" style="margin-top: 16px;">
+  <p><strong>Send this link to the patient:</strong></p>
+  <input type="text" [value]="patientLink" readonly style="width: 100%;" />
+  <button (click)="copyToClipboard()">Copy Link</button>
+</div>
+
+<!-- Button to join the room as doctor -->
+<div *ngIf="roomId" style="margin-top: 16px;">
+  <button (click)="joinRoomAsDoctor()">Join Room as Doctor</button>
+</div>
+
+<!-- Show error if any -->
+<div *ngIf="errorMessage" style="color: red; margin-top: 16px;">
+  {{ errorMessage }}
+</div>
