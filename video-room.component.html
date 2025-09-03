@@ -1,0 +1,168 @@
+<div class="video-room">
+  <!-- LEFT SIDE: Video and Controls -->
+  <!-- <p>{{role}}</p> -->
+  <div class="yira-header">
+    <img src="assets/img/yiraai.svg" class="yira-icon" />
+    <div class="title">Yira.ai</div>
+  </div>
+
+  <div class="video-box" [class.shrunk]="isChatOpen || isParticipantsOpen">
+    <div class="video-container">
+      <div class="local-video">
+        <video #localVideo autoplay muted></video>
+      </div>
+      <div class="remote-video">
+        <video #remoteVideo autoplay [class.screen-sharing]="isRemoteScreenSharing"></video>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-icon">
+        <img src="assets/img/link-icon.svg" alt="Room Link" class="another-icon" (click)="toggleRoomLinkPopup()" />
+      </div>
+      <img src="assets/img/video-icon.svg" alt="Video" (click)="toggleVideo()" />
+      <img src="assets/img/microphone-icon.svg" alt="Mic" (click)="toggleMute()" />
+      <img src="assets/img/screen-share-icon.svg" alt="Share Screen" (click)="toggleScreenShare()" />
+      <img src="assets/img/record-icon.svg" alt="Record" (click)="startOrStopScreenRecording()"
+        [class.disabled]="role !== 'doctor'" [style.pointer-events]="role !== 'doctor' ? 'none' : 'auto'"
+        [style.opacity]="role !== 'doctor' ? '0.5' : '1'" />
+      <div class="control-icon">
+        <img src="assets/img/participants-icon.svg" alt="Participants" class="small-icon"
+          (click)="toggleParticipants()" />
+      </div>
+      <div class="chat-icon-wrapper" (click)="toggleChat()">
+        <img src="assets/img/chat-icon.svg" alt="Chat" />
+        <span *ngIf="!isChatOpen && unreadMessagesCount > 0" class="unread-badge">{{ unreadMessagesCount }}</span>
+      </div>
+      <img src="assets/img/end-call-icon.svg" alt="End Call" (click)="endCall()" />
+    </div>
+
+    <div *ngIf="showRoomLinkPopupBox" class="popup-overlay">
+      <div class="room-link-popup">
+        <p>Share this link with the patient:</p>
+        <input type="text" [value]="patientLink" readonly />
+        <button (click)="copyToClipboard()">Copy Link</button>
+        <button class="close-btn" (click)="toggleRoomLinkPopup()">Close</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT SIDE: Chat -->
+  <div class="chat-container" *ngIf="isChatOpen">
+    <div class="chat-header">
+      <p class="heading">Messages</p>
+      <button class="cross" (click)=closeChat()>x</button>
+    </div>
+
+    <div class="chat-messages" #chatBox>
+      <div *ngFor="let message of messages"
+        [ngClass]="{ 'own-message': message.sender === role, 'received-message': message.sender !== role }">
+
+        <!-- RECEIVED MESSAGE -->
+        <ng-container *ngIf="message.sender !== role">
+          <div class="message-wrapper">
+            <img class="profile-pic" src="assets/img/profile-pic.svg" alt="Profile" />
+            <ng-container [ngSwitch]="message.type">
+              <!-- TEXT -->
+              <div *ngSwitchCase="'text'" class="message-bubble">
+                <div class="message-text" [innerHTML]="formatMessageContent(message.content)"></div>
+
+              </div>
+
+              <!-- IMAGE -->
+              <img *ngSwitchCase="'image'" [src]="message.content" alt="Image" class="chat-image"
+                (click)="openImagePreview(message.content)" />
+
+              <!-- FILE -->
+              <div *ngSwitchCase="'file'" class="message-bubble">
+                <a [href]="message.content" target="_blank" class="file-link">📄 Download File</a>
+              </div>
+            </ng-container>
+          </div>
+        </ng-container>
+
+        <!-- OWN MESSAGE -->
+        <ng-container *ngIf="message.sender === role">
+          <div class="own-bubble-wrapper">
+            <ng-container [ngSwitch]="message.type">
+              <!-- TEXT -->
+              <div *ngSwitchCase="'text'" class="message-bubble own">
+                <div class="message-text" [innerHTML]="formatMessageContent(message.content)"></div>
+              </div>
+
+              <!-- IMAGE -->
+              <img *ngSwitchCase="'image'" [src]="message.content" alt="Image" class="chat-image"
+                (click)="openImagePreview(message.content)" />
+
+              <!-- FILE -->
+              <div *ngSwitchCase="'file'" class="message-bubble own">
+                <a [href]="message.content" target="_blank" class="file-link own">📄 Download File</a>
+              </div>
+            </ng-container>
+          </div>
+        </ng-container>
+
+      </div>
+    </div>
+
+    <div *ngIf="selectedFile" class="file-preview">
+      <div *ngIf="selectedFilePreviewUrl">
+        <img [src]="selectedFilePreviewUrl" alt="Image preview" style="max-width: 150px; max-height: 150px;" />
+      </div>
+      <div *ngIf="!selectedFilePreviewUrl" class="file-name">
+        📄 {{ selectedFile.name }}
+      </div>
+      <button type="button" class="remove-file" (click)="removeSelectedFile()">x</button>
+    </div>
+
+    <div class="chat-input">
+      <textarea [(ngModel)]="chatMessage" placeholder="Message..." (keydown)="onKeyDown($event)" rows="3"></textarea>
+      <label for="file-upload" (click)="fileInput.click()" class="plus-icon">+</label>
+      <input type="file" (change)="onFileSelected($event)" #fileInput hidden />
+      <img src="assets/img/Vector-icon.svg" alt="Send" class="send-icon" (click)="sendMessage()" />
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div class="image-modal" *ngIf="previewImageUrl" (click)="closeImagePreview()">
+      <img [src]="previewImageUrl" alt="Full Image" class="modal-image" (click)="$event.stopPropagation()" />
+      <button class="close-button" (click)="closeImagePreview()">×</button>
+    </div>
+
+  </div>
+  <div class="participants-container" *ngIf="isParticipantsOpen">
+    <div class="participants-header">
+      <p class="heading">Participants</p>
+      <button class="close-btn" (click)="toggleParticipants()">×</button>
+    </div>
+
+    <div class="participants-content">
+      <div *ngFor="let participant of participants" class="participant-row">
+        <p>{{ participant.userName }}</p>
+
+        <div class="icon-group">
+          <ng-container *ngIf="participant.connectionId === hubConnection.connectionId; else otherIcons">
+            <img [src]="participant.isMicOn ? 'assets/img/mic-on.svg' : 'assets/img/mic-off.svg'" alt="Mic Status"
+              class="status-icon" (click)="toggleMute()" />
+            <img [src]="participant.isVideoOn ? 'assets/img/video-on.svg' : 'assets/img/video-off.svg'"
+              alt="Video Status" class="status-icon" (click)="toggleVideo()" />
+            <img *ngIf="participant.isScreenSharing" src="assets/img/screen-on.svg" alt="Screen Sharing"
+              class="status-icon" (click)="toggleScreenShare()" />
+            <img *ngIf="participant.isRecording" src="assets/img/record-on.svg" alt="Recording" class="status-icon"
+              (click)=" startOrStopScreenRecording()" />
+          </ng-container>
+          <ng-template #otherIcons>
+            <img [src]="participant.isMicOn ? 'assets/img/mic-on.svg' : 'assets/img/mic-off.svg'" alt="Mic Status"
+              class="status-icon" />
+            <img [src]="participant.isVideoOn ? 'assets/img/video-on.svg' : 'assets/img/video-off.svg'"
+              alt="Video Status" class="status-icon" />
+            <img *ngIf="participant.isScreenSharing" src="assets/img/screen-on.svg" alt="Screen Sharing"
+              class="status-icon" />
+            <img *ngIf="participant.isRecording" src="assets/img/record-on.svg" alt="Recording" class="status-icon" />
+          </ng-template>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
